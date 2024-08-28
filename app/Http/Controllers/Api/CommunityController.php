@@ -57,6 +57,41 @@ class CommunityController extends Controller
         }
 
         $community->delete();
-        return response()->json([ 'message' => 'Community deleted successfully.'], 200);
+        return response()->json(['message' => 'Community deleted successfully.'], 200);
+    }
+
+    public function requestToJoin(Request $request, $communityId)
+    {
+        $user = auth()->user();
+
+        $community = Community::find($communityId);
+        if (!$community) {
+            return response()->json(['message' => 'Community not found.'], 404);
+        }
+
+        // Check if the authenticated user is the owner of the community
+        if ($community->user_id === $user->id) {
+            return response()->json(['message' => 'You cannot request to join your own community.'], 403);
+        }
+
+        // Check the current status of the user in the community
+        $pivotRecord = $community->users()->wherePivot('user_id', $user->id)->first();
+
+        if ($pivotRecord) {
+            $status = $pivotRecord->pivot->status;
+
+            if ($status === 'pending') {
+                return response()->json(['message' => 'Your request is already pending.'], 400);
+            } elseif ($status === 'approved') {
+                return response()->json(['message' => 'You are already a member of this community.'], 400);
+            } elseif ($status === 'rejected') {
+                return response()->json(['message' => 'Your previous request was rejected. You cannot join this community.'], 403);
+            }
+        }
+
+        // Attach the user to the community with a pending status if no record exists
+        $community->users()->attach($user->id, ['status' => 'pending']);
+
+        return response()->json(['message' => 'Your request to join the community has been sent.'], 200);
     }
 }

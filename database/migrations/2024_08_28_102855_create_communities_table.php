@@ -17,7 +17,7 @@ return new class extends Migration
             $table->unsignedBigInteger('user_id');
             $table->longText('about')->nullable();
             $table->string('location')->nullable();
-            $table->enum('status', ['pending', 'active', 'inactive'])->default('pending');
+            $table->enum('status', ['pending', 'active', 'inactive'])->default('active');
             $table->timestamps();
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });

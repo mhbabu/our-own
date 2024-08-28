@@ -13,15 +13,21 @@ class Community extends Model
 
     protected $fillable = ['name', 'user_id', 'about', 'location', 'status'];
 
-    public function user(){
+    public function user()
+    {
         return $this->belongsTo(User::class);
+    }
+
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'community_users', 'community_id', 'user_id')->withPivot('status', 'approved_at')->withTimestamps();
     }
 
     protected static function booted()
     {
         static::creating(function ($community) {
             if (is_null($community->status)) {
-                $community->status = 'pending'; // Default status if not set
+                $community->status = 'active'; // Default status if not set
             }
         });
     }

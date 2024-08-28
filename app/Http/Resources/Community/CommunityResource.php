@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Community;
 
+use App\Http\Resources\User\UserResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -22,7 +23,8 @@ class CommunityResource extends JsonResource
             'location'    => $this->location,
             'status'      => $this->status,
             'created_at'  => $this->created_at,
-            'updated_at'  => $this->updated_at
+            'updated_at'  => $this->updated_at,
+            'owner'       => new UserResource($this->user)
         ];
     }
 }

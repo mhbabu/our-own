@@ -17,4 +17,5 @@ Route::middleware('auth:api')->group(function () {
     Route::post('user/update-password', [UserProfileController::class, 'updatePassword']);
     Route::post('user/update-profile', [UserProfileController::class, 'updateProfile']);
     Route::apiResource('communities', CommunityController::class);
+    Route::post('communities/{community}/join-request', [CommunityController::class, 'requestToJoin']);
 });
