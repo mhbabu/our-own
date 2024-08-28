@@ -13,7 +13,7 @@ class CommunityController extends Controller
 {
     public function index(Request $request)
     {
-        $perPage = $request->input('per_page', 15);
+        $perPage     = $request->input('per_page', 15);
         $communities = Community::paginate($perPage);
         return CommunityResource::collection($communities);
     }

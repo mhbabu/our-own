@@ -88,9 +88,8 @@ class AuthController extends Controller
             $user->email_verified_at = now();
             $user->save();
 
-            // Invalidate the OTP
-            $verificationCode->update(['expire_at' => now()]);
-
+            // Delete the OTP after account verifiyed
+            $verificationCode->where('user_id', $user->id)->delete();
             $token = $user->createToken('authToken')->accessToken;
 
             return response()->json([
@@ -169,6 +168,8 @@ class AuthController extends Controller
             'token' => $token
         ]);
     }
+
+    
 
     /**
      * Log out the user.

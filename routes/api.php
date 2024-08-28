@@ -10,6 +10,8 @@ Route::post('user/register', [AuthController::class, 'register']);
 Route::post('user/verify-otp', [AuthController::class, 'verifyOtp']);
 Route::post('user/resend-otp', [AuthController::class, 'resendOtp']);
 Route::post('user/login', [AuthController::class, 'login']);
+Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('reset-password', [AuthController::class, 'resetPassword']);
 
 // Routes requiring authentication
 Route::middleware('auth:api')->group(function () {
