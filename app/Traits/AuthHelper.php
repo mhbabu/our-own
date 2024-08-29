@@ -15,17 +15,15 @@ trait AuthHelper
      * @param int $userId
      * @return string
      */
-    private function generateOtp(int $userId): string
+    public function generateOtp(int $userId): string
     {
-        $otp      = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+        $otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
         $expireAt = Carbon::now()->addMinutes(5);
 
-        DB::transaction(function () use ($otp, $expireAt, $userId) {
-            VerificationCode::updateOrCreate(
-                ['user_id' => $userId],
-                ['otp' => $otp, 'expire_at' => $expireAt]
-            );
-        });
+        VerificationCode::updateOrCreate(
+            ['user_id' => $userId],
+            ['otp' => $otp, 'expire_at' => $expireAt]
+        );
 
         return $otp;
     }

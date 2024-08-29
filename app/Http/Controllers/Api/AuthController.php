@@ -3,18 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\User\UserResource;
-use App\Models\User;
-use App\Models\VerificationCode;
-use App\Traits\AuthHelper;
+use App\Services\User\AuthService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
-    use AuthHelper;
+    protected $authService;
+
+    public function __construct(AuthService $authService)
+    {
+        $this->authService = $authService;
+    }
 
     /**
      * Register a user and send OTP.
@@ -34,18 +34,9 @@ class AuthController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
-        $user = User::create([
-            'name'     => $request->name,
-            'email'    => strtolower($request->email),
-            'password' => Hash::make($request->password),
-        ]);
+        $response = $this->authService->registerUser($request->name, $request->email, $request->password);
 
-        // Generate OTP and send email
-        $otp = $this->generateOtp($user->id);
-        // $this->sendOtpEmail($user, $otp);
-
-        return response()->json(['otp' => $otp], 200);
-        // return response()->json(['message' => 'OTP sent to email'], 200);
+        return response()->json($response['data'], $response['status']);
     }
 
     /**
@@ -64,43 +55,10 @@ class AuthController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
-        // Find the verification code based on the OTP
-        $verificationCode = VerificationCode::where('otp', $request->otp)
-            ->where('expire_at', '>', now())
-            ->first();
+        $response = $this->authService->verifyOtp($request->otp);
 
-        if (!$verificationCode) {
-            $expiredCode = VerificationCode::where('otp', $request->otp)
-                ->where('expire_at', '<=', now())
-                ->first();
-
-            if ($expiredCode) {
-                return response()->json(['message' => 'OTP expired'], 401);
-            }
-
-            return response()->json(['message' => 'Invalid OTP'], 401);
-        }
-
-        $user = User::find($verificationCode->user_id);
-
-        if ($user) {
-            $user->is_verified       = true;
-            $user->email_verified_at = now();
-            $user->save();
-
-            // Delete the OTP after account verifiyed
-            $verificationCode->where('user_id', $user->id)->delete();
-            $token = $user->createToken('authToken')->accessToken;
-
-            return response()->json([
-                'data'  => new UserResource($user),
-                'token' => $token
-            ]);
-        }
-
-        return response()->json(['message' => 'User not found'], 404);
+        return response()->json($response['data'], $response['status']);
     }
-
 
     /**
      * Resend OTP to the user's email.
@@ -118,18 +76,9 @@ class AuthController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
-        $user = User::where('email', strtolower($request->email))->first();
+        $response = $this->authService->resendOtp($request->email);
 
-        if (!$user) {
-            return response()->json(['message' => 'User not found'], 404);
-        }
-
-        // Generate new OTP and send email
-        $otp = $this->generateOtp($user->id);
-        // $this->sendOtpEmail($user, $otp);
-
-        return response()->json(['otp' => $otp], 200);
-        return response()->json(['message' => 'New OTP sent to email'], 200);
+        return response()->json($response['data'], $response['status']);
     }
 
     /**
@@ -149,24 +98,9 @@ class AuthController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
-        $credentials = $request->only('email', 'password');
+        $response = $this->authService->loginUser($request->email, $request->password);
 
-        if (!Auth::attempt($credentials)) {
-            return response()->json(['message' => 'Invalid credentials'], 400);
-        }
-
-        $user = Auth::user();
-
-        if (!$user->is_verified) {
-            return response()->json(['message' => 'Email not verified'], 403);
-        }
-
-        $token = $user->createToken('authToken')->accessToken;
-
-        return response()->json([
-            'data'  => new UserResource($user),
-            'token' => $token
-        ]);
+        return response()->json($response['data'], $response['status']);
     }
 
     /**
@@ -185,17 +119,9 @@ class AuthController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
-        $user = User::where('email', strtolower($request->email))->first();
+        $response = $this->authService->requestPasswordReset($request->email);
 
-        if (!$user) {
-            return response()->json(['message' => 'User not found'], 404);
-        }
-
-        // Generate OTP and send email
-        $otp = $this->generateOtp($user->id);
-        // $this->sendOtpEmail($user, $otp, 'Password Reset');
-
-        return response()->json(['otp' => $otp], 200);
+        return response()->json($response['data'], $response['status']);
     }
 
     /**
@@ -216,34 +142,9 @@ class AuthController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
-        // Find the verification code based on the OTP
-        $verificationCode = VerificationCode::where('otp', $request->otp)
-            ->where('expire_at', '>', now())
-            ->first();
+        $response = $this->authService->resetPassword($request->otp, $request->new_password);
 
-        if (!$verificationCode) {
-            $expiredCode = VerificationCode::where('otp', $request->otp)
-                ->where('expire_at', '<=', now())
-                ->first();
-
-            if ($expiredCode) {
-                return response()->json(['message' => 'OTP expired'], 401);
-            }
-
-            return response()->json(['message' => 'Invalid OTP'], 401);
-        }
-
-        $user = User::find($verificationCode->user_id);
-
-        if ($user) {
-            $user->password = Hash::make($request->password);
-            $user->save();
-            $verificationCode->delete();
-
-            return response()->json(['message' => 'Password reset successful'], 200);
-        }
-
-        return response()->json(['message' => 'User not found'], 404);
+        return response()->json($response['data'], $response['status']);
     }
 
     /**
@@ -252,13 +153,9 @@ class AuthController extends Controller
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function logout(Request $request)
+    public function logout()
     {
-        $user = Auth::user();
-        $user->tokens->each(function ($token) {
-            $token->delete();
-        });
-
-        return response()->json(['message' => 'Logged out successfully'], 200);
+        $response = $this->authService->logoutUser();
+        return response()->json($response['data'], $response['status']);
     }
 }
