@@ -39,7 +39,8 @@ class AuthService
 
             DB::commit();
 
-            return ['data' => ['otp' => $otp], 'status' => 200];
+            // return ['data' => ['message' => 'OTP sent to your mail'], 'status' => 200];
+            return ['data' => ['message' => $otp], 'status' => 200];
         } catch (Exception $e) {
             DB::rollBack();
             return ['data' => ['message' => $e->getMessage()], 'status' => 500];
@@ -96,8 +97,9 @@ class AuthService
         if (!$user) return ['data' => ['message' => 'User not found'], 'status' => 404];
 
         $otp = $this->otpService->generateOtp($user->id);
-        $user->notify(new AccountVerificationNotification($user, $otp));
-        return ['data' => ['otp' => $otp], 'status' => 200];
+        // $user->notify(new AccountVerificationNotification($user, $otp));
+        // return ['data' => ['message' => 'OTP sent to your email'], 'status' => 200];
+        return ['data' => ['message' => $otp], 'status' => 200];
     }
 
     /**
@@ -144,9 +146,9 @@ class AuthService
         if (!$verificationCode) {
             $expiredOtp = $this->otpService->getExpiredOtp($otp);
             if ($expiredOtp) {
-                return ['data' => ['message' => 'OTP expired'], 'status' => 401];
+                return ['data' => ['message' => 'OTP expired'], 'status' => 400];
             }
-            return ['data' => ['message' => 'Invalid OTP'], 'status' => 401];
+            return ['data' => ['message' => 'Invalid OTP'], 'status' => 400];
         }
 
         $user = User::find($verificationCode->user_id);
