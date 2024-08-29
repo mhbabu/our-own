@@ -169,7 +169,82 @@ class AuthController extends Controller
         ]);
     }
 
-    
+    /**
+     * Request a password reset and send OTP to the user's email.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function passwordResetRequest(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|string|email|max:255|exists:users,email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
+
+        $user = User::where('email', strtolower($request->email))->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+
+        // Generate OTP and send email
+        $otp = $this->generateOtp($user->id);
+        // $this->sendOtpEmail($user, $otp, 'Password Reset');
+
+        return response()->json(['otp' => $otp], 200);
+    }
+
+    /**
+     * Reset password using OTP.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function resetPassword(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'otp'              => 'required|string',
+            'new_password'     => 'required|string|min:8',
+            'confirm_password' => 'required|string|same:new_password'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
+
+        // Find the verification code based on the OTP
+        $verificationCode = VerificationCode::where('otp', $request->otp)
+            ->where('expire_at', '>', now())
+            ->first();
+
+        if (!$verificationCode) {
+            $expiredCode = VerificationCode::where('otp', $request->otp)
+                ->where('expire_at', '<=', now())
+                ->first();
+
+            if ($expiredCode) {
+                return response()->json(['message' => 'OTP expired'], 401);
+            }
+
+            return response()->json(['message' => 'Invalid OTP'], 401);
+        }
+
+        $user = User::find($verificationCode->user_id);
+
+        if ($user) {
+            $user->password = Hash::make($request->password);
+            $user->save();
+            $verificationCode->delete();
+
+            return response()->json(['message' => 'Password reset successful'], 200);
+        }
+
+        return response()->json(['message' => 'User not found'], 404);
+    }
 
     /**
      * Log out the user.
